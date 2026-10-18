@@ -1,0 +1,291 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>中英单词对战</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh;
+background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);display:flex;justify-content:center;align-items:center;
+overflow:hidden;color:#fff;padding:16px}
+#particles{position:fixed;inset:0;pointer-events:none;
+background:white;border-radius:50%;width:2px;height:2px;opacity:.3;
+box-shadow:5vw 10vh 0 white,12vw 40vh 0 white,25vw 70vh 0 white,35vw 15vh 0 white,45vw 60vh 0 white,
+55vw 30vh 0 white,65vw 80vh 0 white,75vw 20vh 0 white,85vw 55vh 0 white,15vw 85vh 0 white,
+30vw 5vh 0 white,50vw 90vh 0 white,70vw 45vh 0 white,90vw 10vh 0 white,8vw 50vh 0 white,
+60vw 5vh 0 white,40vw 75vh 0 white,80vw 85vh 0 white;
+animation:fl 6s infinite ease-in-out}
+@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}
+.card{background:rgba(255,255,255,.08);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.15);
+padding:26px 22px;border-radius:20px;width:100%;max-width:440px;z-index:1;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+h1{font-size:22px}
+.sub{font-size:12px;color:rgba(255,255,255,.5);margin:2px 0 14px}
+.stats{display:flex;gap:6px;font-size:13px;color:rgba(255,255,255,.75);margin-bottom:14px;flex-wrap:wrap}
+.stat,.timer{background:rgba(255,255,255,.06);padding:5px 9px;border-radius:8px;white-space:nowrap}
+.timer{background:rgba(167,139,250,.18);border:1px solid rgba(167,139,250,.4);font-variant-numeric:tabular-nums}
+.timer.warn{background:rgba(239,68,68,.22);border-color:rgba(239,68,68,.6);color:#fca5a5}
+.unit{display:inline-block;font-size:12px;color:#a78bfa;background:rgba(167,139,250,.14);padding:3px 10px;border-radius:20px;margin-bottom:8px}
+.word{font-size:44px;font-weight:bold;color:#a78bfa;margin:6px 0;min-height:56px;line-height:1.15;word-break:break-word}
+.pos{font-size:14px;color:rgba(255,255,255,.55);min-height:20px}
+input{width:100%;padding:14px;font-size:18px;border:2px solid rgba(255,255,255,.2);border-radius:10px;
+background:rgba(255,255,255,.05);color:#fff;text-align:center;outline:none;transition:.3s}
+input:focus{border-color:#a78bfa}
+input::placeholder{color:rgba(255,255,255,.3)}
+button{margin-top:14px;width:100%;padding:13px;font-size:17px;font-weight:600;
+background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:10px;cursor:pointer;transition:.2s}
+button:hover{transform:translateY(-2px)}
+button:active{transform:translateY(0)}
+.fb{margin-top:14px;font-size:16px;min-height:24px;line-height:1.5}
+.ok{color:#22c55e}.no{color:#ef4444}
+.pop{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:34px;font-weight:bold;color:#f59e0b;
+text-shadow:0 0 20px rgba(245,158,11,.5);animation:pop 1s ease-out;z-index:999;pointer-events:none;text-align:center}
+@keyframes pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.5)}}
+.over{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;justify-content:center;align-items:center;z-index:998;padding:20px}
+.over.show{display:flex}
+.over .card{text-align:center}
+.over h2{font-size:24px;margin-bottom:12px}
+.over p{font-size:15px;color:rgba(255,255,255,.8);margin:4px 0}
+.wrongs{text-align:left;max-height:180px;overflow:auto;margin-top:10px;font-size:13px;color:rgba(255,255,255,.8)}
+@media(max-width:420px){.card{padding:20px 14px}.word{font-size:34px}h1{font-size:20px}}
+</style>
+</head>
+<body>
+<div id="particles"></div>
+<div class="card">
+  <h1>📖 中英单词对战</h1>
+  <div class="sub">Unit 1–6 词汇总复习 · 每题限时</div>
+  <div class="stats">
+    <span class="stat">✅ <span id="c">0</span></span>
+    <span class="stat">🎯 <span id="a">0%</span></span>
+    <span class="stat" id="combo">🔥0</span>
+    <span class="timer" id="timer">⏱ 8s</span>
+  </div>
+  <div class="unit" id="unit"></div>
+  <div class="word" id="w"></div>
+  <div class="pos" id="pos"></div>
+  <input id="ans" placeholder="输入英文…" autocomplete="off" spellcheck="false">
+  <button id="btn">提交 (Enter)</button>
+  <div class="fb" id="fb"></div>
+</div>
+<div class="over" id="over"><div class="card" id="overCard"></div></div>
+
+<script>
+/* 词库：英文,中文,词性,单元 —— 一行一条 */
+const RAW=`lady|女士；女子|n.|1
+gentleman|先生；绅士|n.|1
+puppet|木偶；傀儡|n.|1
+performance|表演；演出|n.|1
+performer|表演者|n.|1
+teenager|青少年|n.|1
+finger|手指|n.|1
+take part in|参加；参与|phr.|1
+unless|除非；如果不|conj.|1
+video|视频；录像|n.|1
+amaze|使惊奇；使惊讶|v.|1
+post|发布；张贴|v. & n.|1
+be flooded with|大量收到；充斥|phr.|1
+hold on|坚持；等一下|phr.|1
+blood|血；血液|n.|1
+interested|感兴趣的|adj.|1
+surprising|令人惊讶的|adj.|1
+lost|失去的；迷路的|adj.|1
+viewer|观众；观看者|n.|1
+attention|注意；关注|n.|1
+abroad|在国外；到国外|adv.|1
+teenage|青少年的；青少年时期|adj.|1
+folk art|民间艺术|n.|1
+programme|节目；计划；方案|n.|1
+volunteer|志愿者|n.|1
+group|组；群；团体|n.|1
+report|报告；报道|n. & v.|1
+tin|锡；罐头|n.|2
+spare|空闲的；多余的|adj.|2
+moneybox|钱箱；存钱罐|n.|2
+own|自己的；拥有|adj. & v.|2
+size|尺寸；大小|n.|2
+better|更好的；较好的|adj.|2
+make sense|理解；讲得通；有意义|phr.|2
+dreamland|梦境；理想世界|n.|2
+manage|管理；应付；处理|v.|2
+key|关键；钥匙|n.|2
+deal with|处理；应付|phr.|2
+laptop|笔记本电脑|n.|2
+budget|预算|n.|2
+exactly|确切地；精确地|adv.|2
+pleasure|快乐；满足；乐事|n.|2
+end|结束；结尾|n. & v.|2
+save|储蓄；节省；救|v.|2
+bank|银行|n.|2
+account|账户；账目|n.|2
+expensive|昂贵的|adj.|2
+price|价格|n.|2
+savings|储蓄；存款|n.|2
+make ends meet|使收支平衡；量入为出|phr.|2
+date|日期；日子|n.|2
+sale|出售；销售|n.|2
+on sale|廉价出售；打折|phr.|2
+T-shirt|T恤衫|n.|2
+website|网站|n.|2
+worth|价值；值得|adj. & n.|2
+cent|分；美分|n.|2
+dollar|美元|n.|2
+penny|便士|n.|2
+couple|一对；几个；夫妇|n.|2
+flat|公寓；平的|n. & adj.|2
+treasure|珍宝；珍品|n.|2
+Christmas Eve|圣诞节前夕|n.|2
+certainly|当然；无疑|adv.|2
+chain|链条；连锁|n.|2
+coin|硬币|n.|2
+guest|客人；宾客|n.|3
+remains|遗迹；剩余物|n.|3
+lie|位于；躺；撒谎|v.|3
+northwest|西北方；西北的|n. & adj.|3
+such|这样的；如此的|adj.|3
+archaeologist|考古学家|n.|3
+giant|巨人；巨大的|n. & adj.|3
+cartoon|卡通；动画片|n.|3
+silk|丝绸|n.|3
+technology|科技；技术|n.|3
+noisy|吵闹的；嘈杂的|adj.|3
+fridge|冰箱|n.|3
+mirror|镜子|n.|3
+leave behind|留下；遗留；离开|phr.|3
+gentle|温和的；温柔的|adj.|3
+punish|惩罚|v.|3
+harm|伤害；损害|n. & v.|3
+organisation|组织；机构|n.|4
+global warming|全球变暖|n.|4
+rubbish|垃圾；废物|n.|4
+overflow|溢出；过度填充|v.|4
+gas|气体；煤气|n.|4
+greenhouse gas|温室气体|n.|4
+square|平方；广场|adj. & n.|4
+logging|伐木；砍伐|n.|4
+solar panel|太阳能电池板|n.|4
+microphone|麦克风；话筒|n.|4
+alarm|警报；闹钟|n.|4
+fox|狐狸|n.|4
+guard|守卫；门卫|n.|4
+foreigner|外国人|n.|4
+logo|标志；商标|n.|4
+endangered|濒危的|adj.|4
+vulnerable|易受伤害的；脆弱的|adj.|4
+protection|保护|n.|4
+farmland|农田|n.|4
+great-aunt|姑妈；姨妈（父亲的姐妹）|n.|4
+son|儿子|n.|4
+fighter|斗士；战士|n.|4
+war|战争|n.|4
+battle|战役；战斗|n.|4
+experiment|实验|n.|4
+person|人；个人|n.|4
+human|人；人类|n. & adj.|4
+drop|落下；滴|v. & n.|4
+later|后来；稍后|adv.|4
+footstep|脚步（声）；足迹|n.|4
+realise|意识到；实现|v.|4
+tourist|旅游者；游客|n.|5
+benefit|好处；受益|n. & v.|5
+wonder|奇迹；想知道|n. & v.|5
+consider|考虑；认为|v.|5
+material|材料；原料|n.|5
+shape|形状；外形|n.|5
+cheap|便宜的；廉价的|adj.|5
+pollute|污染|v.|5
+truck|卡车|n.|5
+emission|排放（物）|n.|5
+reuse|重复使用|v.|5
+businessman|商人；企业家|n.|5
+building|建筑物；楼房|n.|5
+independent|独立的|adj.|6
+except|除…之外|prep.|6
+responsibility|责任；职责|n.|6
+energy|力量；活力；能源|n.|6
+youth|青年；年轻人|n.|6
+wealth|财富；财产|n.|6
+country|国家；乡村|n.|6
+nation|民族；国家|n.|6
+fence|栅栏；篱笆|n.|6
+kill|杀死；致死|v.|6
+scarecrow|稻草人|n.|6
+educator|教育家|n.|6`;
+
+const words=RAW.trim().split("\n").map(l=>{const p=l.split("|");return{en:p[0],cn:p[1],pos:p[2],unit:+p[3]}});
+const $=id=>document.getElementById(id), N=words.length, LIMIT=8;
+const norm=s=>s.toLowerCase().replace(/[\s.,\-–—]+/g," ").trim();
+let cur,used=[],correct=0,total=0,combo=0,maxCombo=0,wrongs=[];
+let timer,left,start,elapsed=0;
+
+function showTimer(){const t=$("timer");t.textContent=`⏱ ${left}s`;t.classList.toggle("warn",left<=3)}
+function startTimer(){clearInterval(timer);left=LIMIT;start=Date.now();showTimer();
+  timer=setInterval(()=>{left=LIMIT-Math.ceil((Date.now()-start)/1000);
+    if(left<=0){left=0;showTimer();overTime()}else showTimer()},200)}
+function stopTimer(){clearInterval(timer);if(start)elapsed+=Date.now()-start;start=0}
+
+function next(){
+  if(used.length>=N) return finish();
+  let i;do{i=Math.floor(Math.random()*N)}while(used.includes(i));
+  used.push(i);cur=words[i];
+  $("unit").textContent=`UNIT ${cur.unit}`;
+  $("w").textContent=cur.cn;
+  $("pos").textContent=`词性：${cur.pos}`;
+  const a=$("ans");a.value="";a.style.borderColor="";a.disabled=false;a.focus();
+  $("fb").textContent="";$("btn").textContent="提交 (Enter)";
+  startTimer();
+}
+
+function check(){
+  if(!cur)return;
+  const v=$("ans").value.trim(),nv=norm(v);
+  if(!nv)return;
+  stopTimer();total++;
+  if(nv===norm(cur.en)){
+    correct++;combo++;maxCombo=Math.max(maxCombo,combo);
+    $("fb").innerHTML='<span class="ok">✅ 漂亮！</span>';
+    if([3,5,10].includes(combo)||combo%10===0)pop(combo);
+    setTimeout(next,500);
+  }else{
+    combo=0;wrongs.push({...cur,you:v});
+    $("fb").innerHTML=`<span class="no">❌ 你输入的：<b>${v}</b><br>正确答案：<b>${cur.en}</b></span>`;
+    setTimeout(next,2000);
+  }
+  $("c").textContent=correct;$("a").textContent=Math.round(correct/total*100)+"%";
+  $("combo").textContent=`🔥${combo}`;
+}
+
+function overTime(){stopTimer();total++;combo=0;wrongs.push({...cur,you:""});
+  $("fb").innerHTML=`<span class="no">⏰ 超时！答案：<b>${cur.en}</b></span>`;
+  $("c").textContent=correct;$("a").textContent=Math.round(correct/total*100)+"%";$("combo").textContent="🔥0";
+  setTimeout(next,1400)}
+
+function pop(n){const e=document.createElement("div");e.className="pop";e.textContent=`${n} COMBO! 🔥`;
+  document.body.appendChild(e);setTimeout(()=>e.remove(),1000)}
+
+function finish(){
+  stopTimer();cur=null;
+  $("overCard").innerHTML=`<h2>${wrongs.length?"📊 本轮结束":"🏆 完美通关！"}</h2>
+    <p>正确：<b>${correct}</b> / ${total}</p >
+    <p>准确率：<b>${Math.round(correct/total*100)}%</b></p >
+    <p>最高连击：<b>${maxCombo} 🔥</b></p >
+    <p>总用时：<b>${Math.round(elapsed/1000)}s</b></p >
+    ${wrongs.length?`<div class="wrongs"><b style="color:#fbbf24">本次错题回顾：</b><br>
+      ${wrongs.map(w=>`· ${w.cn} → <b>${w.en}</b>`).join("<br>")}</div>`:""}
+    <button onclick="restart()">再来一轮 🔄</button>`;
+  $("over").classList.add("show");
+}
+
+function restart(){used=[];correct=0;total=0;combo=0;maxCombo=0;wrongs=[];elapsed=0;
+  $("over").classList.remove("show");$("c").textContent=0;$("a").textContent="0%";$("combo").textContent="🔥0";
+  next()}
+
+$("btn").onclick=check;
+$("ans").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();check()}};
+$("ans").oninput=e=>{const v=e.target.value.trim();
+  e.target.style.borderColor=v?norm(cur.en).startsWith(norm(v))?"rgba(34,197,94,.6)":"rgba(239,68,68,.6)":""};
+next();
+</script>
+</body>
+</html>
